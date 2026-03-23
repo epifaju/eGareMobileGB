@@ -1,0 +1,5 @@
+# Profil dev : OTP renvoyé dans le JSON pour tests sans SMS.
+app:
+  auth:
+    expose-otp-in-response: true
+    allow-driver-self-registration: true

@@ -1,0 +1,19 @@
+# Global secrets and local environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# Common private keys and certs
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

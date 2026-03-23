@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: gare-mobile-api
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:garemobilegb}
+    username: ${DB_USER:gare}
+    password: ${DB_PASSWORD:gare_dev_secret}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Écoute sur toutes les interfaces (nécessaire pour téléphone sur le LAN)
+  address: 0.0.0.0
+
+app:
+  seed:
+    admin-phone: "+24500000001"
+    admin-password: ${SEED_ADMIN_PASSWORD:change-me-in-env}
+  auth:
+    # Ne jamais activer en production : renvoie l’OTP dans la réponse JSON (tests / dev sans SMS).
+    expose-otp-in-response: false
+    # Inscription avec rôle conducteur (body registerAsDriver=true). Désactivé en prod.
+    allow-driver-self-registration: false
+  jwt:
+    # HS256 : minimum 256 bits (32 caractères ASCII). Surcharger en prod via JWT_SECRET.
+    secret: ${JWT_SECRET:dev-only-change-me-use-64-chars-minimum-secret-key!!}
+    access-expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+  security:
+    rate-limit-per-minute: 100
+  booking:
+    # Phase 0 : confirmation immédiate sans passerelle (équivalent ancien flux réservation).
+    # Mettre à false pour tester PENDING_PAYMENT + POST /api/payments/{id}/confirm.
+    auto-confirm-without-payment-gateway: true
+  sms:
+    # NONE = aucun envoi ; LOG = journalisation uniquement ; AFRICASTALKING = non branché (voir docs/SMS_OTP.md).
+    provider: LOG
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.garemobilegb: INFO
