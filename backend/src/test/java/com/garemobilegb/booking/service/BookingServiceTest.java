@@ -6,14 +6,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.garemobilegb.auth.domain.Role;
 import com.garemobilegb.auth.domain.User;
 import com.garemobilegb.auth.repository.UserRepository;
+import com.garemobilegb.booking.domain.Booking;
 import com.garemobilegb.booking.repository.BookingRepository;
 import com.garemobilegb.booking.domain.BookingStatus;
+import com.garemobilegb.booking.payment.MobileMoneyOrchestrationService;
 import com.garemobilegb.shared.config.BookingProperties;
 import com.garemobilegb.shared.exceptions.BusinessException;
 import com.garemobilegb.station.domain.Station;
@@ -25,6 +28,7 @@ import com.garemobilegb.vehicle.service.VehicleRealtimeService;
 import com.garemobilegb.vehicle.service.VehicleWaitTimeEstimator;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -42,6 +46,9 @@ class BookingServiceTest {
   @Mock VehicleRealtimeService vehicleRealtimeService;
   @Mock BookingProperties bookingProperties;
   @Mock VehicleWaitTimeEstimator vehicleWaitTimeEstimator;
+  @Mock MobileMoneyOrchestrationService mobileMoneyOrchestrationService;
+  @Mock ApplicationEventPublisher eventPublisher;
+  @Mock BoardingQrJwtService boardingQrJwtService;
 
   @InjectMocks BookingService bookingService;
 
@@ -95,7 +102,15 @@ class BookingServiceTest {
     when(bookingProperties.autoConfirmWithoutPaymentGateway()).thenReturn(true);
     when(vehicleWaitTimeEstimator.estimateMinutes(any(), any())).thenReturn(5);
     when(vehicleRepository.save(any(Vehicle.class))).thenAnswer(inv -> inv.getArgument(0));
-    when(bookingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    when(bookingRepository.save(any(Booking.class)))
+        .thenAnswer(
+            inv -> {
+              Booking b = inv.getArgument(0);
+              ReflectionTestUtils.setField(b, "id", 99L);
+              return b;
+            });
+    when(boardingQrJwtService.createBoardingQrToken(any(Booking.class)))
+        .thenReturn("eyJhbGciOiJIUzI1NiJ9.fake");
 
     bookingService.reserveSeat(1L, 2L, 3);
 
@@ -103,7 +118,31 @@ class BookingServiceTest {
     verify(vehicleRepository).save(vehicleCaptor.capture());
     assertThat(vehicleCaptor.getValue().getOccupiedSeats()).isEqualTo(1);
 
-    verify(bookingRepository).save(any());
+    verify(bookingRepository, times(2)).save(any(Booking.class));
+    verify(boardingQrJwtService).createBoardingQrToken(any(Booking.class));
+    verify(vehicleRealtimeService).broadcastUpdate(eq(10L), any());
+  }
+
+  @Test
+  void reserveSeat_withoutAutoConfirm_returnsPendingPaymentAndDoesNotIncrementVehicle() {
+    when(bookingRepository.existsByUser_IdAndVehicle_IdAndStatusIn(eq(2L), eq(1L), any()))
+        .thenReturn(false);
+    when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+    when(vehicleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(vehicle));
+    when(bookingProperties.autoConfirmWithoutPaymentGateway()).thenReturn(false);
+    when(bookingRepository.save(any(Booking.class)))
+        .thenAnswer(
+            inv -> {
+              Booking b = inv.getArgument(0);
+              ReflectionTestUtils.setField(b, "id", 100L);
+              return b;
+            });
+
+    var res = bookingService.reserveSeat(1L, 2L, 3);
+
+    assertThat(res.bookingStatus()).isEqualTo(BookingStatus.PENDING_PAYMENT.name());
+    verify(vehicleRepository, never()).save(any(Vehicle.class));
+    verify(boardingQrJwtService, never()).createBoardingQrToken(any(Booking.class));
     verify(vehicleRealtimeService).broadcastUpdate(eq(10L), any());
   }
 

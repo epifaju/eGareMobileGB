@@ -3,7 +3,7 @@ package com.garemobilegb.vehicle.controller;
 import com.garemobilegb.booking.service.BookingService;
 import com.garemobilegb.shared.security.UserPrincipal;
 import com.garemobilegb.vehicle.dto.ReserveSeatRequest;
-import com.garemobilegb.vehicle.dto.VehicleResponse;
+import com.garemobilegb.vehicle.dto.ReserveSeatResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,7 +28,7 @@ public class VehicleReservationController {
   @PostMapping("/{id}/reserve-seat")
   @ResponseStatus(HttpStatus.OK)
   @PreAuthorize("hasRole('USER')")
-  public VehicleResponse reserveSeat(
+  public ReserveSeatResponse reserveSeat(
       @PathVariable long id,
       @AuthenticationPrincipal UserPrincipal principal,
       @RequestBody(required = false) ReserveSeatRequest request) {

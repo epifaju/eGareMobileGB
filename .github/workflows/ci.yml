@@ -1,5 +1,6 @@
 # Sprint 1 — CI : tests + vérification build backend ; tests + typecheck mobile.
 # Le build natif Android/iOS (Gradle/Xcode) reste en local ou EAS (trop lourd pour ce workflow).
+# Phase 6 (ops) : charge k6 manuelle — `k6 run -e BASE_URL=... ops/load/k6-smoke.js` ; Detox — `npm run e2e` dans mobile (APK + émulateur).
 
 name: CI
 

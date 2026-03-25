@@ -24,7 +24,8 @@ public record BookingResponse(
     PaymentProvider paymentProvider,
     Integer seatNumber,
     String qrToken,
-    Instant expiresAt) {
+    Instant expiresAt,
+    Instant boardingValidatedAt) {
 
   public static BookingResponse from(Booking b) {
     var v = b.getVehicle();
@@ -46,6 +47,7 @@ public record BookingResponse(
         p != null ? p.getProvider() : PaymentProvider.INTERNAL,
         b.getSeatNumber(),
         b.getQrToken(),
-        b.getExpiresAt());
+        b.getExpiresAt(),
+        b.getBoardingValidatedAt());
   }
 }

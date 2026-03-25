@@ -38,12 +38,50 @@ app:
     secret: ${JWT_SECRET:dev-only-change-me-use-64-chars-minimum-secret-key!!}
     access-expiration-ms: 900000
     refresh-expiration-ms: 604800000
+  boarding:
+    jwt:
+      # RS256 : PKCS#8 PEM (clé privée). Dev : classpath:keys/boarding-qr-dev-private.pem
+      # Prod : BOARDING_JWT_PRIVATE_KEY (multiligne PEM) — l’app conducteur n’embarque que la clé publique.
+      private-key-pem: ${BOARDING_JWT_PRIVATE_KEY:}
+      private-key-location: classpath:keys/boarding-qr-dev-private.pem
+      expiration-ms: 86400000
   security:
     rate-limit-per-minute: 100
   booking:
-    # Phase 0 : confirmation immédiate sans passerelle (équivalent ancien flux réservation).
-    # Mettre à false pour tester PENDING_PAYMENT + POST /api/payments/{id}/confirm.
-    auto-confirm-without-payment-gateway: true
+    # false = flux Phase 3/4 : réservation → PENDING_PAYMENT → initiate → webhook → PAID.
+    # Pour l’ancien flux « confirmation immédiate sans paiement » (dev rapide) :
+    #   APP_BOOKING_AUTO_CONFIRM_WITHOUT_PAYMENT_GATEWAY=true
+    auto-confirm-without-payment-gateway: false
+  payment:
+    # sandbox : secret simple (X-Sandbox-Secret) ; production : HMAC corps (X-Signature: sha256=...).
+    mode: ${PAYMENT_MODE:sandbox}
+    webhook-secret: ${PAYMENT_WEBHOOK_SECRET:dev-webhook-secret-change-me}
+    # URL publique du backend (même hôte que l’API pour le simulateur HTML). Ex. LAN : http://192.168.1.10:8080
+    public-base-url: ${PAYMENT_PUBLIC_BASE_URL:http://localhost:8080}
+    # Phase 3 — Mobile Money réel (HTTP + chaîne de secours). Ignoré en mode sandbox.
+    mobile-money:
+      fallback-order:
+        - ORANGE_MONEY
+        - WAVE
+        - MTN
+      retry:
+        enabled: true
+        poll-interval-ms: 120000
+      orange-money:
+        base-url: ${ORANGE_MONEY_API_BASE:}
+        api-key: ${ORANGE_MONEY_API_KEY:}
+        initiate-path: ${ORANGE_MONEY_INITIATE_PATH:/v1/collect}
+        response-redirect-field: redirectUrl
+      wave:
+        base-url: ${WAVE_API_BASE:}
+        api-key: ${WAVE_API_KEY:}
+        initiate-path: ${WAVE_INITIATE_PATH:/v1/payments}
+        response-redirect-field: redirectUrl
+      mtn:
+        base-url: ${MTN_API_BASE:}
+        api-key: ${MTN_API_KEY:}
+        initiate-path: ${MTN_INITIATE_PATH:/momo/v1/collection}
+        response-redirect-field: redirectUrl
   sms:
     # NONE = aucun envoi ; LOG = journalisation uniquement ; AFRICASTALKING = non branché (voir docs/SMS_OTP.md).
     provider: LOG
@@ -52,3 +90,16 @@ logging:
   level:
     org.springframework.security: INFO
     com.garemobilegb: INFO
+
+# Phase 6 — observabilité (Sprint 4 PRD) : santé + métriques Prometheus
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}

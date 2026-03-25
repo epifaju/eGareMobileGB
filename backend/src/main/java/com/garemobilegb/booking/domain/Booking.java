@@ -43,11 +43,16 @@ public class Booking {
   @Column(name = "seat_number")
   private Integer seatNumber;
 
-  @Column(name = "qr_token", length = 64)
+  /** JWT compact (Phase 2) ou ancien jeton hex ; JWT peut dépasser 512 caractères. */
+  @Column(name = "qr_token", length = 2048)
   private String qrToken;
 
   @Column(name = "expires_at")
   private Instant expiresAt;
+
+  /** Premier scan QR valide à l’embarquement (conducteur). */
+  @Column(name = "boarding_validated_at")
+  private Instant boardingValidatedAt;
 
   @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
   private Payment payment;
@@ -110,6 +115,14 @@ public class Booking {
 
   public void setExpiresAt(Instant expiresAt) {
     this.expiresAt = expiresAt;
+  }
+
+  public Instant getBoardingValidatedAt() {
+    return boardingValidatedAt;
+  }
+
+  public void setBoardingValidatedAt(Instant boardingValidatedAt) {
+    this.boardingValidatedAt = boardingValidatedAt;
   }
 
   public Payment getPayment() {

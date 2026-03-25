@@ -2,8 +2,11 @@ package com.garemobilegb.booking.controller;
 
 import com.garemobilegb.booking.dto.BookingResponse;
 import com.garemobilegb.booking.dto.PaymentConfirmRequest;
+import com.garemobilegb.booking.dto.PaymentInitiateRequest;
+import com.garemobilegb.booking.dto.PaymentInitiateResponse;
 import com.garemobilegb.booking.service.BookingService;
 import com.garemobilegb.shared.security.UserPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -99,5 +103,20 @@ public class BookingController {
       @RequestBody(required = false) PaymentConfirmRequest body) {
     bookingService.confirmPayment(
         bookingId, principal.getId(), body != null ? body : new PaymentConfirmRequest(null));
+  }
+
+  /**
+   * Démarre un paiement (URL sandbox ou redirection passerelle). Phase 4 PRD : Orange / Wave /
+   * MTN.
+   */
+  @PostMapping("/bookings/{bookingId}/payment/initiate")
+  @ResponseStatus(HttpStatus.OK)
+  @PreAuthorize("hasRole('USER')")
+  public PaymentInitiateResponse initiatePayment(
+      @PathVariable long bookingId,
+      @AuthenticationPrincipal UserPrincipal principal,
+      @Valid @RequestBody PaymentInitiateRequest body,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+    return bookingService.initiatePayment(bookingId, principal.getId(), body, idempotencyKey);
   }
 }

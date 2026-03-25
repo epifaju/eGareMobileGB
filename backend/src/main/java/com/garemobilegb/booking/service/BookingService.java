@@ -9,17 +9,22 @@ import com.garemobilegb.booking.domain.PaymentProvider;
 import com.garemobilegb.booking.domain.PaymentStatus;
 import com.garemobilegb.booking.dto.BookingResponse;
 import com.garemobilegb.booking.dto.PaymentConfirmRequest;
+import com.garemobilegb.booking.dto.PaymentInitiateRequest;
+import com.garemobilegb.booking.dto.PaymentInitiateResponse;
 import com.garemobilegb.booking.dto.SeatCellResponse;
 import com.garemobilegb.booking.dto.SeatCellType;
 import com.garemobilegb.booking.dto.SeatMapResponse;
+import com.garemobilegb.booking.payment.MobileMoneyOrchestrationService;
 import com.garemobilegb.booking.repository.BookingRepository;
 import com.garemobilegb.shared.config.BookingProperties;
 import com.garemobilegb.shared.exceptions.BusinessException;
 import com.garemobilegb.vehicle.domain.Vehicle;
 import com.garemobilegb.vehicle.domain.VehicleSeatLayout;
 import com.garemobilegb.vehicle.domain.VehicleStatus;
+import com.garemobilegb.vehicle.dto.ReserveSeatResponse;
 import com.garemobilegb.vehicle.dto.VehicleResponse;
 import com.garemobilegb.vehicle.repository.VehicleRepository;
+import com.garemobilegb.notification.event.VehicleOccupancyChangedEvent;
 import com.garemobilegb.vehicle.service.VehicleRealtimeService;
 import com.garemobilegb.vehicle.service.VehicleWaitTimeEstimator;
 import java.math.BigDecimal;
@@ -29,7 +34,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -53,6 +58,9 @@ public class BookingService {
   private final VehicleRealtimeService vehicleRealtimeService;
   private final BookingProperties bookingProperties;
   private final VehicleWaitTimeEstimator vehicleWaitTimeEstimator;
+  private final BoardingQrJwtService boardingQrJwtService;
+  private final MobileMoneyOrchestrationService mobileMoneyOrchestrationService;
+  private final ApplicationEventPublisher eventPublisher;
 
   public BookingService(
       BookingRepository bookingRepository,
@@ -60,17 +68,23 @@ public class BookingService {
       VehicleRepository vehicleRepository,
       VehicleRealtimeService vehicleRealtimeService,
       BookingProperties bookingProperties,
-      VehicleWaitTimeEstimator vehicleWaitTimeEstimator) {
+      VehicleWaitTimeEstimator vehicleWaitTimeEstimator,
+      BoardingQrJwtService boardingQrJwtService,
+      MobileMoneyOrchestrationService mobileMoneyOrchestrationService,
+      ApplicationEventPublisher eventPublisher) {
     this.bookingRepository = bookingRepository;
     this.userRepository = userRepository;
     this.vehicleRepository = vehicleRepository;
     this.vehicleRealtimeService = vehicleRealtimeService;
     this.bookingProperties = bookingProperties;
     this.vehicleWaitTimeEstimator = vehicleWaitTimeEstimator;
+    this.boardingQrJwtService = boardingQrJwtService;
+    this.mobileMoneyOrchestrationService = mobileMoneyOrchestrationService;
+    this.eventPublisher = eventPublisher;
   }
 
   @Transactional
-  public VehicleResponse reserveSeat(long vehicleId, long userId, Integer requestedSeatNumber) {
+  public ReserveSeatResponse reserveSeat(long vehicleId, long userId, Integer requestedSeatNumber) {
     if (bookingRepository.existsByUser_IdAndVehicle_IdAndStatusIn(
         userId, vehicleId, BLOCKING_STATUSES)) {
       throw new BusinessException(
@@ -83,21 +97,24 @@ public class BookingService {
     validateVehicleForNewBooking(vehicle);
 
     Booking booking = new Booking(user, vehicle);
-    Payment payment =
-        new Payment(booking, BigDecimal.ZERO, "XOF", PaymentProvider.INTERNAL);
+    BigDecimal amount = resolveFareAmount(vehicle);
+    Payment payment = new Payment(booking, amount, "XOF", PaymentProvider.INTERNAL);
     booking.attachPayment(payment);
 
     int resolvedSeatNumber = resolveSeatNumber(vehicle, requestedSeatNumber);
     booking.setSeatNumber(resolvedSeatNumber);
+    bookingRepository.save(booking);
 
     if (bookingProperties.autoConfirmWithoutPaymentGateway()) {
+      int previousOccupied = vehicle.getOccupiedSeats();
       applyVehicleIncrement(vehicle);
       Vehicle savedVehicle = vehicleRepository.save(vehicle);
-      finalizeConfirmedBooking(booking, payment, savedVehicle);
+      finalizeConfirmedBooking(booking, payment, savedVehicle, PaymentProvider.INTERNAL);
       bookingRepository.save(booking);
+      publishOccupancyChange(savedVehicle, previousOccupied);
       VehicleResponse dto = toVehicleResponse(savedVehicle);
       vehicleRealtimeService.broadcastUpdate(savedVehicle.getStation().getId(), dto);
-      return dto;
+      return new ReserveSeatResponse(booking.getId(), BookingStatus.CONFIRMED.name(), dto);
     }
 
     payment.setStatus(PaymentStatus.PENDING);
@@ -105,7 +122,67 @@ public class BookingService {
     bookingRepository.save(booking);
     VehicleResponse dto = toVehicleResponse(vehicle);
     vehicleRealtimeService.broadcastUpdate(vehicle.getStation().getId(), dto);
-    return dto;
+    return new ReserveSeatResponse(booking.getId(), BookingStatus.PENDING_PAYMENT.name(), dto);
+  }
+
+  private static BigDecimal resolveFareAmount(Vehicle vehicle) {
+    Integer fare = vehicle.getFareAmountXof();
+    if (fare != null && fare > 0) {
+      return BigDecimal.valueOf(fare);
+    }
+    return new BigDecimal("500");
+  }
+
+  /**
+   * Démarre le paiement (Phase 3 : idempotence, sandbox, HTTP opérateurs, chaîne de secours).
+   */
+  @Transactional
+  public PaymentInitiateResponse initiatePayment(
+      long bookingId, long userId, PaymentInitiateRequest request, String idempotencyKeyHeader) {
+    return mobileMoneyOrchestrationService.initiatePayment(
+        bookingId, userId, request, idempotencyKeyHeader);
+  }
+
+  /**
+   * Confirmation côté serveur après webhook passerelle (sans JWT utilisateur). Idempotent si déjà
+   * payé.
+   */
+  @Transactional
+  public void confirmPaymentFromWebhook(
+      long bookingId, PaymentProvider provider, String externalTransactionRef) {
+    Booking booking =
+        bookingRepository
+            .findById(bookingId)
+            .orElseThrow(
+                () ->
+                    new BusinessException(
+                        HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND", "Réservation introuvable"));
+    if (booking.getStatus() == BookingStatus.CONFIRMED) {
+      return;
+    }
+    if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
+      throw new BusinessException(
+          HttpStatus.CONFLICT,
+          "BOOKING_NOT_PENDING_PAYMENT",
+          "Réservation inattendue pour un paiement.");
+    }
+    Payment payment = booking.getPayment();
+    if (payment == null || payment.getStatus() != PaymentStatus.PENDING) {
+      return;
+    }
+    Vehicle vehicle = loadVehicleForUpdate(booking.getVehicle().getId());
+    validateVehicleForNewBooking(vehicle);
+    if (externalTransactionRef != null && !externalTransactionRef.isBlank()) {
+      payment.setProviderRef(externalTransactionRef.trim());
+    }
+    int previousOccupied = vehicle.getOccupiedSeats();
+    applyVehicleIncrement(vehicle);
+    vehicleRepository.save(vehicle);
+    finalizeConfirmedBooking(booking, payment, vehicle, provider);
+    bookingRepository.save(booking);
+    publishOccupancyChange(vehicle, previousOccupied);
+    VehicleResponse dto = toVehicleResponse(vehicle);
+    vehicleRealtimeService.broadcastUpdate(vehicle.getStation().getId(), dto);
   }
 
   @Transactional
@@ -135,10 +212,12 @@ public class BookingService {
       payment.setProviderRef(body.providerTransactionRef().trim());
     }
 
+    int previousOccupied = vehicle.getOccupiedSeats();
     applyVehicleIncrement(vehicle);
     vehicleRepository.save(vehicle);
-    finalizeConfirmedBooking(booking, payment, vehicle);
+    finalizeConfirmedBooking(booking, payment, vehicle, PaymentProvider.INTERNAL);
     bookingRepository.save(booking);
+    publishOccupancyChange(vehicle, previousOccupied);
     VehicleResponse dto = toVehicleResponse(vehicle);
     vehicleRealtimeService.broadcastUpdate(vehicle.getStation().getId(), dto);
   }
@@ -167,6 +246,7 @@ public class BookingService {
     }
 
     if (booking.getStatus() == BookingStatus.CONFIRMED) {
+      int previousOccupied = vehicle.getOccupiedSeats();
       int next = Math.max(0, vehicle.getOccupiedSeats() - 1);
       vehicle.setOccupiedSeats(next);
       adjustVehicleStatusAfterDecrement(vehicle);
@@ -174,6 +254,13 @@ public class BookingService {
       if (p != null && p.getStatus() == PaymentStatus.PAID) {
         p.setStatus(PaymentStatus.REFUNDED);
       }
+      vehicleRepository.save(vehicle);
+      booking.setStatus(BookingStatus.CANCELLED);
+      bookingRepository.save(booking);
+      publishOccupancyChange(vehicle, previousOccupied);
+      VehicleResponse dto = toVehicleResponse(vehicle);
+      vehicleRealtimeService.broadcastUpdate(vehicle.getStation().getId(), dto);
+      return;
     } else if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {
       Payment p = booking.getPayment();
       if (p != null && p.getStatus() == PaymentStatus.PENDING) {
@@ -381,20 +468,18 @@ public class BookingService {
     }
   }
 
-  private void finalizeConfirmedBooking(Booking booking, Payment payment, Vehicle vehicle) {
+  private void finalizeConfirmedBooking(
+      Booking booking, Payment payment, Vehicle vehicle, PaymentProvider paidWith) {
     booking.setStatus(BookingStatus.CONFIRMED);
     payment.setStatus(PaymentStatus.PAID);
-    payment.setProvider(PaymentProvider.INTERNAL);
+    if (paidWith != null) {
+      payment.setProvider(paidWith);
+    }
     if (booking.getSeatNumber() == null) {
       booking.setSeatNumber(vehicle.getOccupiedSeats());
     }
-    booking.setQrToken(newQrToken());
     booking.setExpiresAt(Instant.now().plus(BOOKING_TTL_HOURS, ChronoUnit.HOURS));
-  }
-
-  private static String newQrToken() {
-    return UUID.randomUUID().toString().replace("-", "")
-        + UUID.randomUUID().toString().replace("-", "");
+    booking.setQrToken(boardingQrJwtService.createBoardingQrToken(booking));
   }
 
   private void adjustVehicleStatusAfterDecrement(Vehicle vehicle) {
@@ -410,5 +495,19 @@ public class BookingService {
   private VehicleResponse toVehicleResponse(Vehicle vehicle) {
     return VehicleResponse.from(vehicle)
         .withEstimatedWaitMinutes(vehicleWaitTimeEstimator.estimateMinutes(vehicle, Instant.now()));
+  }
+
+  private void publishOccupancyChange(Vehicle vehicle, int previousOccupiedSeats) {
+    if (vehicle.getCapacity() <= 0) {
+      return;
+    }
+    eventPublisher.publishEvent(
+        new VehicleOccupancyChangedEvent(
+            vehicle.getId(),
+            vehicle.getStation().getId(),
+            vehicle.getRegistrationCode(),
+            previousOccupiedSeats,
+            vehicle.getOccupiedSeats(),
+            vehicle.getCapacity()));
   }
 }

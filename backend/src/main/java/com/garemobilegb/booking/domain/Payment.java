@@ -42,6 +42,17 @@ public class Payment {
   @Column(nullable = false, length = 16)
   private PaymentStatus status = PaymentStatus.PENDING;
 
+  /** Clé idempotence client (Phase 3) — unique si renseignée. */
+  @Column(name = "idempotency_key", length = 128, unique = true)
+  private String idempotencyKey;
+
+  /** Réponse {@code initiate} mise en cache pour rejouer la même réponse (même clé idempotence). */
+  @Column(name = "checkout_url_cache", columnDefinition = "TEXT")
+  private String checkoutUrlCache;
+
+  @Column(name = "payment_token_cache", columnDefinition = "TEXT")
+  private String paymentTokenCache;
+
   protected Payment() {}
 
   public Payment(Booking booking, BigDecimal amount, String currency, PaymentProvider provider) {
@@ -101,5 +112,29 @@ public class Payment {
 
   public void setStatus(PaymentStatus status) {
     this.status = status;
+  }
+
+  public String getIdempotencyKey() {
+    return idempotencyKey;
+  }
+
+  public void setIdempotencyKey(String idempotencyKey) {
+    this.idempotencyKey = idempotencyKey;
+  }
+
+  public String getCheckoutUrlCache() {
+    return checkoutUrlCache;
+  }
+
+  public void setCheckoutUrlCache(String checkoutUrlCache) {
+    this.checkoutUrlCache = checkoutUrlCache;
+  }
+
+  public String getPaymentTokenCache() {
+    return paymentTokenCache;
+  }
+
+  public void setPaymentTokenCache(String paymentTokenCache) {
+    this.paymentTokenCache = paymentTokenCache;
   }
 }

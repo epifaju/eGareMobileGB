@@ -2,6 +2,7 @@ package com.garemobilegb.booking.repository;
 
 import com.garemobilegb.booking.domain.Booking;
 import com.garemobilegb.booking.domain.BookingStatus;
+import com.garemobilegb.booking.dto.RevenueAggregateRow;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -54,4 +55,26 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
   @EntityGraph(attributePaths = {"vehicle", "vehicle.station", "payment"})
   Optional<Booking> findByIdAndUser_Id(long id, long userId);
+
+  @EntityGraph(attributePaths = {"vehicle", "vehicle.station", "payment"})
+  Optional<Booking> findByQrToken(String qrToken);
+
+  @EntityGraph(attributePaths = {"user", "payment", "vehicle"})
+  @Query(
+      "SELECT b FROM Booking b WHERE b.vehicle.id = :vehicleId AND b.status IN :statuses "
+          + "ORDER BY CASE WHEN b.seatNumber IS NULL THEN 1 ELSE 0 END ASC, b.seatNumber ASC")
+  List<Booking> findManifestForVehicle(
+      @Param("vehicleId") long vehicleId, @Param("statuses") Collection<BookingStatus> statuses);
+
+  @Query(
+      "SELECT new com.garemobilegb.booking.dto.RevenueAggregateRow("
+          + "COALESCE(SUM(p.amount), 0), COUNT(b.id)) FROM Booking b JOIN b.payment p "
+          + "WHERE b.vehicle.id = :vehicleId AND p.status = :paid AND b.status = :confirmed "
+          + "AND b.createdAt >= :from AND b.createdAt <= :to")
+  RevenueAggregateRow sumPaidRevenueForVehicle(
+      @Param("vehicleId") long vehicleId,
+      @Param("paid") com.garemobilegb.booking.domain.PaymentStatus paid,
+      @Param("confirmed") com.garemobilegb.booking.domain.BookingStatus confirmed,
+      @Param("from") java.time.Instant from,
+      @Param("to") java.time.Instant to);
 }

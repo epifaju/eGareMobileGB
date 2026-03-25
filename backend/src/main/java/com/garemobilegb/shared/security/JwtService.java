@@ -20,6 +20,11 @@ public class JwtService {
   public static final String CLAIM_ROLE = "role";
   public static final String TYP_ACCESS = "access";
   public static final String TYP_REFRESH = "refresh";
+  /** Jeton court pour page checkout sandbox / retour passerelle. */
+  public static final String TYP_PAYMENT_CHECKOUT = "payment_checkout";
+
+  public static final String CLAIM_BOOKING_ID = "bid";
+  public static final String CLAIM_PAYMENT_PROVIDER = "pprov";
 
   private final JwtProperties props;
   private final SecretKey key;
@@ -54,6 +59,25 @@ public class JwtService {
         .expiration(Date.from(exp))
         .signWith(key)
         .compact();
+  }
+
+  /** Jeton 15 min pour ouvrir l’URL de paiement (sandbox ou redirection prod). */
+  public String createPaymentCheckoutToken(long bookingId, long userId, String providerName) {
+    Instant issued = Instant.now();
+    Instant exp = issued.plusMillis(900_000);
+    return Jwts.builder()
+        .subject(String.valueOf(userId))
+        .claim(CLAIM_TYP, TYP_PAYMENT_CHECKOUT)
+        .claim(CLAIM_BOOKING_ID, bookingId)
+        .claim(CLAIM_PAYMENT_PROVIDER, providerName)
+        .issuedAt(Date.from(issued))
+        .expiration(Date.from(exp))
+        .signWith(key)
+        .compact();
+  }
+
+  public Claims parsePaymentCheckoutToken(String token) {
+    return parseAndValidate(token, TYP_PAYMENT_CHECKOUT);
   }
 
   public Claims parseAndValidate(String token, String expectedTyp) {
