@@ -13,7 +13,7 @@ public record MobileMoneyProviderProperties(
     /** Ordre de secours ; vide = Orange → Wave → MTN. */
     List<PaymentProvider> fallbackOrder,
     RetrySettings retry,
-    ProviderEndpoint orangeMoney,
+    OrangeMoneyEndpoint orangeMoney,
     ProviderEndpoint wave,
     ProviderEndpoint mtn) {
 

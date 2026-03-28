@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
 @Table(name = "payments")
@@ -52,6 +53,17 @@ public class Payment {
 
   @Column(name = "payment_token_cache", columnDefinition = "TEXT")
   private String paymentTokenCache;
+
+  /** Montant effectivement remboursé (souvent 80 % du payé — Phase 4). */
+  @Column(name = "refund_amount", precision = 12, scale = 2)
+  private BigDecimal refundAmount;
+
+  @Column(name = "refunded_at")
+  private Instant refundedAt;
+
+  /** Référence côté opérateur après remboursement réel. */
+  @Column(name = "refund_provider_ref", length = 128)
+  private String refundProviderRef;
 
   protected Payment() {}
 
@@ -136,5 +148,29 @@ public class Payment {
 
   public void setPaymentTokenCache(String paymentTokenCache) {
     this.paymentTokenCache = paymentTokenCache;
+  }
+
+  public BigDecimal getRefundAmount() {
+    return refundAmount;
+  }
+
+  public void setRefundAmount(BigDecimal refundAmount) {
+    this.refundAmount = refundAmount;
+  }
+
+  public Instant getRefundedAt() {
+    return refundedAt;
+  }
+
+  public void setRefundedAt(Instant refundedAt) {
+    this.refundedAt = refundedAt;
+  }
+
+  public String getRefundProviderRef() {
+    return refundProviderRef;
+  }
+
+  public void setRefundProviderRef(String refundProviderRef) {
+    this.refundProviderRef = refundProviderRef;
   }
 }

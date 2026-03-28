@@ -17,7 +17,11 @@ import com.garemobilegb.booking.domain.Booking;
 import com.garemobilegb.booking.repository.BookingRepository;
 import com.garemobilegb.booking.domain.BookingStatus;
 import com.garemobilegb.booking.payment.MobileMoneyOrchestrationService;
+import com.garemobilegb.booking.service.BookingCancellationPolicy;
+import com.garemobilegb.booking.service.RefundAuditService;
+import com.garemobilegb.booking.service.RefundOrchestrationService;
 import com.garemobilegb.shared.config.BookingProperties;
+import com.garemobilegb.shared.config.RefundProperties;
 import com.garemobilegb.shared.exceptions.BusinessException;
 import com.garemobilegb.station.domain.Station;
 import com.garemobilegb.vehicle.domain.Vehicle;
@@ -49,6 +53,10 @@ class BookingServiceTest {
   @Mock MobileMoneyOrchestrationService mobileMoneyOrchestrationService;
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock BoardingQrJwtService boardingQrJwtService;
+  @Mock BookingCancellationPolicy bookingCancellationPolicy;
+  @Mock RefundOrchestrationService refundOrchestrationService;
+  @Mock RefundAuditService refundAuditService;
+  @Mock RefundProperties refundProperties;
 
   @InjectMocks BookingService bookingService;
 

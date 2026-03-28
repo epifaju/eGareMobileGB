@@ -7,6 +7,7 @@ import com.garemobilegb.booking.domain.Payment;
 import com.garemobilegb.booking.domain.PaymentProvider;
 import com.garemobilegb.booking.payment.config.MobileMoneyProviderProperties;
 import com.garemobilegb.booking.payment.config.MobileMoneyProviderProperties.ProviderEndpoint;
+import com.garemobilegb.booking.payment.config.OrangeMoneyEndpoint;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,8 +18,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 /**
- * Appels HTTP vers les API opérateurs (prod). Les URLs et schémas JSON sont configurables ; brancher
- * les vrais endpoints selon le contrat Orange / Wave / MTN du pays cible.
+ * Appels HTTP vers les API opérateurs (prod). Orange Money : Web Payment OAuth prioritaire, sinon
+ * POST générique si {@code base-url} seul est renseigné.
  */
 @Component
 public class MobileMoneyRemoteInitiator {
@@ -26,27 +27,66 @@ public class MobileMoneyRemoteInitiator {
   private final RestClient restClient;
   private final ObjectMapper objectMapper;
   private final MobileMoneyProviderProperties props;
+  private final OrangeMoneyWebPaymentClient orangeMoneyWebPaymentClient;
 
   public MobileMoneyRemoteInitiator(
-      RestClient restClient, ObjectMapper objectMapper, MobileMoneyProviderProperties props) {
+      RestClient restClient,
+      ObjectMapper objectMapper,
+      MobileMoneyProviderProperties props,
+      OrangeMoneyWebPaymentClient orangeMoneyWebPaymentClient) {
     this.restClient = restClient;
     this.objectMapper = objectMapper;
     this.props = props;
+    this.orangeMoneyWebPaymentClient = orangeMoneyWebPaymentClient;
   }
-
-  public record RemoteInitiateResult(String redirectUrl, String externalReference) {}
 
   public Optional<RemoteInitiateResult> initiate(
       PaymentProvider provider, Booking booking, Payment payment) {
+    if (provider == PaymentProvider.ORANGE_MONEY) {
+      Optional<RemoteInitiateResult> om = orangeMoneyWebPaymentClient.initiate(booking, payment);
+      if (om.isPresent()) {
+        return om;
+      }
+      OrangeMoneyEndpoint ep = props.orangeMoney();
+      if (ep != null && ep.legacyGenericReady()) {
+        return genericInitiate(
+            ep.baseUrl(),
+            ep.apiKey(),
+            ep.initiatePath(),
+            ep.responseRedirectField(),
+            provider,
+            booking,
+            payment);
+      }
+      return Optional.empty();
+    }
     ProviderEndpoint ep = endpointFor(provider);
     if (ep == null || ep.baseUrl() == null || ep.baseUrl().isBlank()) {
       return Optional.empty();
     }
-    String path = ep.initiatePath() != null ? ep.initiatePath() : "";
+    return genericInitiate(
+        ep.baseUrl(),
+        ep.apiKey(),
+        ep.initiatePath(),
+        ep.responseRedirectField(),
+        provider,
+        booking,
+        payment);
+  }
+
+  private Optional<RemoteInitiateResult> genericInitiate(
+      String baseUrl,
+      String apiKey,
+      String initiatePath,
+      String responseRedirectField,
+      PaymentProvider provider,
+      Booking booking,
+      Payment payment) {
+    String path = initiatePath != null ? initiatePath : "";
     if (!path.isEmpty() && !path.startsWith("/")) {
       path = "/" + path;
     }
-    String url = ep.baseUrl().replaceAll("/$", "") + path;
+    String url = baseUrl.replaceAll("/$", "") + path;
     Map<String, Object> body = new HashMap<>();
     body.put("reference", "booking-" + booking.getId());
     body.put("amount", payment.getAmount());
@@ -60,8 +100,8 @@ public class MobileMoneyRemoteInitiator {
               .contentType(MediaType.APPLICATION_JSON)
               .headers(
                   h -> {
-                    if (ep.apiKey() != null && !ep.apiKey().isBlank()) {
-                      h.setBearerAuth(ep.apiKey());
+                    if (apiKey != null && !apiKey.isBlank()) {
+                      h.setBearerAuth(apiKey);
                     }
                   })
               .body(body)
@@ -72,8 +112,8 @@ public class MobileMoneyRemoteInitiator {
       }
       JsonNode root = objectMapper.readTree(raw);
       String field =
-          ep.responseRedirectField() != null && !ep.responseRedirectField().isBlank()
-              ? ep.responseRedirectField()
+          responseRedirectField != null && !responseRedirectField.isBlank()
+              ? responseRedirectField
               : "redirectUrl";
       if (!root.has(field) || root.get(field).isNull()) {
         return Optional.empty();
@@ -93,7 +133,6 @@ public class MobileMoneyRemoteInitiator {
 
   private ProviderEndpoint endpointFor(PaymentProvider provider) {
     return switch (provider) {
-      case ORANGE_MONEY -> props.orangeMoney();
       case WAVE -> props.wave();
       case MTN -> props.mtn();
       default -> null;

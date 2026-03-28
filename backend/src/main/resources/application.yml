@@ -52,6 +52,19 @@ app:
     # Pour l’ancien flux « confirmation immédiate sans paiement » (dev rapide) :
     #   APP_BOOKING_AUTO_CONFIRM_WITHOUT_PAYMENT_GATEWAY=true
     auto-confirm-without-payment-gateway: false
+    # Phase 4 — annulation / remboursement (PRD)
+    refund:
+      min-minutes-before-departure: 30
+      refund-percent-of-paid-amount: 0.80
+      refund-provider-sla-hours: 48
+      allow-cancel-when-departure-unknown: true
+      # false = REFUND_PENDING jusqu’à API remboursement opérateur (Orange, …)
+      simulate-provider-refund-instant: true
+    # Phase 5 — reçu PDF + SMS (placeholders : {bookingId} {route} {station} {amount} {currency})
+    receipt:
+      sms-template: >-
+        eGare : votre reçu pour la réservation n°{bookingId} ({route}, {station}) est disponible.
+        Ouvrez l’application > Mes réservations pour télécharger le PDF.
   payment:
     # sandbox : secret simple (X-Sandbox-Secret) ; production : HMAC corps (X-Signature: sha256=...).
     mode: ${PAYMENT_MODE:sandbox}
@@ -68,6 +81,21 @@ app:
         enabled: true
         poll-interval-ms: 120000
       orange-money:
+        # --- Web Payment (prioritaire si oauth + web-payment + client + merchant renseignés) ---
+        oauth-token-url: ${ORANGE_MONEY_OAUTH_TOKEN_URL:https://api.orange.com/oauth/v2/token}
+        web-payment-url: ${ORANGE_MONEY_WEB_PAYMENT_URL:}
+        client-id: ${ORANGE_MONEY_CLIENT_ID:}
+        client-secret: ${ORANGE_MONEY_CLIENT_SECRET:}
+        merchant-key: ${ORANGE_MONEY_MERCHANT_KEY:}
+        lang: fr
+        currency: XOF
+        # optionnel : défauts = public-base-url + chemins API
+        # notif-url:
+        # return-url:
+        # cancel-url:
+        response-payment-url-field: payment_url
+        response-pay-token-field: pay_token
+        # --- Fallback : un seul POST JSON (legacy / mock) ---
         base-url: ${ORANGE_MONEY_API_BASE:}
         api-key: ${ORANGE_MONEY_API_KEY:}
         initiate-path: ${ORANGE_MONEY_INITIATE_PATH:/v1/collect}

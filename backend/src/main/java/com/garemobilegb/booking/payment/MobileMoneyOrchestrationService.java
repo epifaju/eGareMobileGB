@@ -7,7 +7,7 @@ import com.garemobilegb.booking.domain.PaymentProvider;
 import com.garemobilegb.booking.domain.PaymentStatus;
 import com.garemobilegb.booking.dto.PaymentInitiateRequest;
 import com.garemobilegb.booking.dto.PaymentInitiateResponse;
-import com.garemobilegb.booking.payment.MobileMoneyRemoteInitiator.RemoteInitiateResult;
+import com.garemobilegb.booking.payment.RemoteInitiateResult;
 import com.garemobilegb.booking.payment.config.MobileMoneyProviderProperties;
 import com.garemobilegb.booking.repository.BookingRepository;
 import com.garemobilegb.booking.repository.PaymentRepository;

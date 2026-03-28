@@ -69,6 +69,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/payments/sandbox/**")
                     .permitAll()
+                    .requestMatchers("/api/payments/orange/**")
+                    .permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
                     .permitAll()
                     .requestMatchers("/actuator/prometheus", "/actuator/metrics", "/actuator/metrics/**")

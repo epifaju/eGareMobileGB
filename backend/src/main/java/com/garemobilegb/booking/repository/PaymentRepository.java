@@ -11,5 +11,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
   @EntityGraph(attributePaths = {"booking", "booking.user"})
   Optional<Payment> findByIdempotencyKey(String idempotencyKey);
 
+  @EntityGraph(attributePaths = "booking")
+  Optional<Payment> findWithBookingById(Long id);
+
   long countByStatus(PaymentStatus status);
 }

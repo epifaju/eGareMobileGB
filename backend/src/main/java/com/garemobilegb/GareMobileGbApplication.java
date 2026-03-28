@@ -3,6 +3,8 @@ package com.garemobilegb;
 import com.garemobilegb.shared.config.AuthDevProperties;
 import com.garemobilegb.shared.config.BoardingJwtProperties;
 import com.garemobilegb.shared.config.BookingProperties;
+import com.garemobilegb.shared.config.ReceiptProperties;
+import com.garemobilegb.shared.config.RefundProperties;
 import com.garemobilegb.booking.payment.config.MobileMoneyProviderProperties;
 import com.garemobilegb.shared.config.PaymentGatewayProperties;
 import com.garemobilegb.shared.config.JwtProperties;
@@ -21,6 +23,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
   RateLimitProperties.class,
   AuthDevProperties.class,
   BookingProperties.class,
+  RefundProperties.class,
+  ReceiptProperties.class,
   PaymentGatewayProperties.class,
   MobileMoneyProviderProperties.class,
   SmsProperties.class

@@ -22,6 +22,18 @@ public class LoggingSmsSender implements SmsSender {
     log.debug("Longueur OTP (valeur non journalisée) : {}", otpCode != null ? otpCode.length() : 0);
   }
 
+  @Override
+  public void sendTransactionalSms(String phoneNumber, String message) {
+    if (warnStub) {
+      log.warn(
+          "SMS transactionnel non envoyé via passerelle réelle — voir docs/SMS_OTP.md");
+    }
+    log.info(
+        "SMS transactionnel simulé pour ***{} — longueur message {} caractères",
+        suffix(phoneNumber),
+        message != null ? message.length() : 0);
+  }
+
   private static String suffix(String phoneNumber) {
     if (phoneNumber == null || phoneNumber.length() < 4) {
       return "****";

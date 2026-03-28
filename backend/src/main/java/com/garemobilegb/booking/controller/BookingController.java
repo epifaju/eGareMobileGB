@@ -4,6 +4,7 @@ import com.garemobilegb.booking.dto.BookingResponse;
 import com.garemobilegb.booking.dto.PaymentConfirmRequest;
 import com.garemobilegb.booking.dto.PaymentInitiateRequest;
 import com.garemobilegb.booking.dto.PaymentInitiateResponse;
+import com.garemobilegb.booking.service.BookingReceiptService;
 import com.garemobilegb.booking.service.BookingService;
 import com.garemobilegb.shared.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -11,7 +12,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,9 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class BookingController {
 
   private final BookingService bookingService;
+  private final BookingReceiptService bookingReceiptService;
 
-  public BookingController(BookingService bookingService) {
+  public BookingController(
+      BookingService bookingService, BookingReceiptService bookingReceiptService) {
     this.bookingService = bookingService;
+    this.bookingReceiptService = bookingReceiptService;
   }
 
   @GetMapping("/me/bookings")
@@ -118,5 +125,28 @@ public class BookingController {
       @Valid @RequestBody PaymentInitiateRequest body,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
     return bookingService.initiatePayment(bookingId, principal.getId(), body, idempotencyKey);
+  }
+
+  /** Phase 5 — reçu PDF (paiement confirmé ou état de remboursement lié). */
+  @GetMapping(value = "/bookings/{id}/receipt", produces = MediaType.APPLICATION_PDF_VALUE)
+  @PreAuthorize("hasRole('USER')")
+  public ResponseEntity<byte[]> downloadReceipt(
+      @PathVariable long id, @AuthenticationPrincipal UserPrincipal principal) {
+    byte[] pdf = bookingReceiptService.buildReceiptPdf(id, principal.getId());
+    return ResponseEntity.ok()
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            "attachment; filename=\"recu-reservation-" + id + ".pdf\"")
+        .contentType(MediaType.APPLICATION_PDF)
+        .body(pdf);
+  }
+
+  /** Phase 5 — rappel par SMS (contenu configurable : {@code app.booking.receipt.sms-template}). */
+  @PostMapping("/bookings/{id}/receipt/send-sms")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('USER')")
+  public void sendReceiptSms(
+      @PathVariable long id, @AuthenticationPrincipal UserPrincipal principal) {
+    bookingReceiptService.sendReceiptSms(id, principal.getId());
   }
 }

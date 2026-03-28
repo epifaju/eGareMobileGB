@@ -16,7 +16,9 @@ import com.garemobilegb.booking.dto.SeatCellType;
 import com.garemobilegb.booking.dto.SeatMapResponse;
 import com.garemobilegb.booking.payment.MobileMoneyOrchestrationService;
 import com.garemobilegb.booking.repository.BookingRepository;
+import com.garemobilegb.booking.domain.RefundAuditEventType;
 import com.garemobilegb.shared.config.BookingProperties;
+import com.garemobilegb.shared.config.RefundProperties;
 import com.garemobilegb.shared.exceptions.BusinessException;
 import com.garemobilegb.vehicle.domain.Vehicle;
 import com.garemobilegb.vehicle.domain.VehicleSeatLayout;
@@ -61,6 +63,10 @@ public class BookingService {
   private final BoardingQrJwtService boardingQrJwtService;
   private final MobileMoneyOrchestrationService mobileMoneyOrchestrationService;
   private final ApplicationEventPublisher eventPublisher;
+  private final BookingCancellationPolicy bookingCancellationPolicy;
+  private final RefundOrchestrationService refundOrchestrationService;
+  private final RefundAuditService refundAuditService;
+  private final RefundProperties refundProperties;
 
   public BookingService(
       BookingRepository bookingRepository,
@@ -71,7 +77,11 @@ public class BookingService {
       VehicleWaitTimeEstimator vehicleWaitTimeEstimator,
       BoardingQrJwtService boardingQrJwtService,
       MobileMoneyOrchestrationService mobileMoneyOrchestrationService,
-      ApplicationEventPublisher eventPublisher) {
+      ApplicationEventPublisher eventPublisher,
+      BookingCancellationPolicy bookingCancellationPolicy,
+      RefundOrchestrationService refundOrchestrationService,
+      RefundAuditService refundAuditService,
+      RefundProperties refundProperties) {
     this.bookingRepository = bookingRepository;
     this.userRepository = userRepository;
     this.vehicleRepository = vehicleRepository;
@@ -81,6 +91,10 @@ public class BookingService {
     this.boardingQrJwtService = boardingQrJwtService;
     this.mobileMoneyOrchestrationService = mobileMoneyOrchestrationService;
     this.eventPublisher = eventPublisher;
+    this.bookingCancellationPolicy = bookingCancellationPolicy;
+    this.refundOrchestrationService = refundOrchestrationService;
+    this.refundAuditService = refundAuditService;
+    this.refundProperties = refundProperties;
   }
 
   @Transactional
@@ -246,13 +260,24 @@ public class BookingService {
     }
 
     if (booking.getStatus() == BookingStatus.CONFIRMED) {
+      bookingCancellationPolicy.assertMayCancel(vehicle, Instant.now());
+      refundAuditService.append(
+          booking.getId(),
+          userId,
+          RefundAuditEventType.CANCELLATION_WINDOW_CHECKED,
+          "minMinutesBeforeDeparture="
+              + refundProperties.minMinutesOrDefault()
+              + ", departureScheduledAt="
+              + vehicle.getDepartureScheduledAt());
+
       int previousOccupied = vehicle.getOccupiedSeats();
       int next = Math.max(0, vehicle.getOccupiedSeats() - 1);
       vehicle.setOccupiedSeats(next);
       adjustVehicleStatusAfterDecrement(vehicle);
       Payment p = booking.getPayment();
       if (p != null && p.getStatus() == PaymentStatus.PAID) {
-        p.setStatus(PaymentStatus.REFUNDED);
+        refundOrchestrationService.applyRefundAfterCancellation(
+            booking.getId(), userId, p, p.getAmount());
       }
       vehicleRepository.save(vehicle);
       booking.setStatus(BookingStatus.CANCELLED);

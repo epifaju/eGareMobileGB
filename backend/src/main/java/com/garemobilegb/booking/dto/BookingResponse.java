@@ -25,7 +25,10 @@ public record BookingResponse(
     Integer seatNumber,
     String qrToken,
     Instant expiresAt,
-    Instant boardingValidatedAt) {
+    Instant boardingValidatedAt,
+    /** Montant remboursé ou à rembourser (Phase 4). */
+    BigDecimal refundAmount,
+    Instant refundedAt) {
 
   public static BookingResponse from(Booking b) {
     var v = b.getVehicle();
@@ -48,6 +51,8 @@ public record BookingResponse(
         b.getSeatNumber(),
         b.getQrToken(),
         b.getExpiresAt(),
-        b.getBoardingValidatedAt());
+        b.getBoardingValidatedAt(),
+        p != null ? p.getRefundAmount() : null,
+        p != null ? p.getRefundedAt() : null);
   }
 }
