@@ -30,6 +30,9 @@ public class Station {
   @Column(length = 500)
   private String description;
 
+  @Column(nullable = false)
+  private boolean archived = false;
+
   protected Station() {}
 
   public Station(String name, String city, double latitude, double longitude, String description) {
@@ -62,5 +65,33 @@ public class Station {
 
   public String getDescription() {
     return description;
+  }
+
+  public boolean isArchived() {
+    return archived;
+  }
+
+  public void setArchived(boolean archived) {
+    this.archived = archived;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public void setCity(String city) {
+    this.city = city;
+  }
+
+  public void setLatitude(Double latitude) {
+    this.latitude = latitude;
+  }
+
+  public void setLongitude(Double longitude) {
+    this.longitude = longitude;
+  }
+
+  public void setDescription(String description) {
+    this.description = description;
   }
 }

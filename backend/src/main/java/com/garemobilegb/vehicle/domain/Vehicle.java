@@ -64,6 +64,10 @@ public class Vehicle {
   @Column(name = "fare_amount_xof")
   private Integer fareAmountXof;
 
+  /** Retiré des flux voyageur / recherche ; conservé pour l’historique comptable. */
+  @Column(nullable = false)
+  private boolean archived = false;
+
   protected Vehicle() {}
 
   public Vehicle(
@@ -169,5 +173,29 @@ public class Vehicle {
     this.currentLatitude = latitude;
     this.currentLongitude = longitude;
     this.locationUpdatedAt = at;
+  }
+
+  public boolean isArchived() {
+    return archived;
+  }
+
+  public void setArchived(boolean archived) {
+    this.archived = archived;
+  }
+
+  public void setRegistrationCode(String registrationCode) {
+    this.registrationCode = registrationCode;
+  }
+
+  public void setRouteLabel(String routeLabel) {
+    this.routeLabel = routeLabel;
+  }
+
+  public void setCapacity(int capacity) {
+    this.capacity = capacity;
+  }
+
+  public void setSeatLayout(VehicleSeatLayout seatLayout) {
+    this.seatLayout = seatLayout;
   }
 }

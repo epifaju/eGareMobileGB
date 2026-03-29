@@ -31,12 +31,18 @@ public class DataSeeder {
       UserRepository users,
       PasswordEncoder passwordEncoder,
       @Value("${app.seed.admin-phone:+24500000001}") String adminPhone,
-      @Value("${app.seed.admin-password:dev-admin-change-me}") String adminPassword) {
+      @Value("${app.seed.admin-password:dev-admin-change-me}") String adminPassword,
+      @Value("${app.seed.agent-phone:+24500000002}") String agentPhone,
+      @Value("${app.seed.agent-password:dev-agent-change-me}") String agentPassword) {
     return args -> {
       if (!users.existsByPhoneNumber(adminPhone)) {
         users.save(
             new User(adminPhone, passwordEncoder.encode(adminPassword), Role.ADMIN));
         log.info("Compte administrateur seed créé (téléphone suffixe masqué).");
+      }
+      if (!agentPhone.isBlank() && !users.existsByPhoneNumber(agentPhone)) {
+        users.save(new User(agentPhone, passwordEncoder.encode(agentPassword), Role.AGENT));
+        log.info("Compte agent de gare seed créé (téléphone suffixe masqué).");
       }
       if (stations.count() > 0) {
         return;

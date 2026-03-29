@@ -32,7 +32,7 @@ public class VehicleBoardingController {
   /** Scan QR passager : valide l’embarquement pour le véhicule courant (conducteur / admin). */
   @PostMapping("/{vehicleId}/boarding/validate-qr")
   @ResponseStatus(HttpStatus.OK)
-  @PreAuthorize("hasAnyRole('DRIVER','ADMIN')")
+  @PreAuthorize("hasAnyRole('AGENT','DRIVER','ADMIN')")
   public BoardingValidationResponse validateQr(
       @PathVariable long vehicleId, @Valid @RequestBody ValidateBoardingQrRequest body) {
     return boardingValidationService.validateForVehicle(vehicleId, body.qrToken());
@@ -44,7 +44,7 @@ public class VehicleBoardingController {
    */
   @PostMapping("/{vehicleId}/boarding/sync-scans")
   @ResponseStatus(HttpStatus.OK)
-  @PreAuthorize("hasAnyRole('DRIVER','ADMIN')")
+  @PreAuthorize("hasAnyRole('AGENT','DRIVER','ADMIN')")
   public BoardingScanSyncResponse syncScans(
       @PathVariable long vehicleId, @Valid @RequestBody BoardingScanSyncRequest body) {
     List<BoardingScanSyncResultItem> results = new ArrayList<>();

@@ -45,14 +45,20 @@ public class VehicleService {
 
   @Transactional(readOnly = true)
   public Page<VehicleResponse> listByStation(long stationId, boolean activeOnly, Pageable pageable) {
-    if (!stationRepository.existsById(stationId)) {
+    var station =
+        stationRepository
+            .findById(stationId)
+            .orElseThrow(
+                () ->
+                    new BusinessException(HttpStatus.NOT_FOUND, "STATION_NOT_FOUND", "Gare introuvable"));
+    if (station.isArchived()) {
       throw new BusinessException(HttpStatus.NOT_FOUND, "STATION_NOT_FOUND", "Gare introuvable");
     }
     Page<Vehicle> page =
         activeOnly
-            ? vehicleRepository.findByStation_IdAndStatusNot(
+            ? vehicleRepository.findByStation_IdAndStatusNotAndArchivedFalse(
                 stationId, VehicleStatus.PARTI, pageable)
-            : vehicleRepository.findByStation_Id(stationId, pageable);
+            : vehicleRepository.findByStation_IdAndArchivedFalse(stationId, pageable);
     Instant now = Instant.now();
     List<Vehicle> vehicles = page.getContent();
     Map<Long, Integer> capacities = new HashMap<>();
@@ -71,6 +77,10 @@ public class VehicleService {
             .orElseThrow(
                 () ->
                     new BusinessException(HttpStatus.NOT_FOUND, "VEHICLE_NOT_FOUND", "Véhicule introuvable"));
+    if (vehicle.isArchived()) {
+      throw new BusinessException(
+          HttpStatus.CONFLICT, "VEHICLE_ARCHIVED", "Ce véhicule n’est plus actif.");
+    }
     vehicle.setStatus(request.status());
     Vehicle saved = vehicleRepository.save(vehicle);
     VehicleResponse dto = toResponse(saved, Instant.now(), null);
@@ -86,6 +96,10 @@ public class VehicleService {
             .orElseThrow(
                 () ->
                     new BusinessException(HttpStatus.NOT_FOUND, "VEHICLE_NOT_FOUND", "Véhicule introuvable"));
+    if (vehicle.isArchived()) {
+      throw new BusinessException(
+          HttpStatus.CONFLICT, "VEHICLE_ARCHIVED", "Ce véhicule n’est plus actif.");
+    }
     vehicle.updateLocation(request.latitude(), request.longitude(), Instant.now());
     Vehicle saved = vehicleRepository.save(vehicle);
     VehicleResponse dto = toResponse(saved, Instant.now(), null);
@@ -96,7 +110,8 @@ public class VehicleService {
   @Transactional(readOnly = true)
   public List<VehicleResponse> listLiveForMap() {
     return vehicleRepository
-        .findByStatusNotAndCurrentLatitudeIsNotNullAndCurrentLongitudeIsNotNull(VehicleStatus.PARTI)
+        .findByStatusNotAndCurrentLatitudeIsNotNullAndCurrentLongitudeIsNotNullAndArchivedFalse(
+            VehicleStatus.PARTI)
         .stream()
         .map(v -> toResponse(v, Instant.now(), null))
         .toList();

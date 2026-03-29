@@ -27,7 +27,7 @@ public class VehicleStatusController {
   /** Mise à jour statut conducteur / admin — déclenche un push WebSocket sur la gare. */
   @PutMapping("/{id}/status")
   @ResponseStatus(HttpStatus.OK)
-  @PreAuthorize("hasAnyRole('DRIVER','ADMIN')")
+  @PreAuthorize("hasAnyRole('AGENT','DRIVER','ADMIN')")
   public VehicleResponse updateStatus(
       @PathVariable long id, @Valid @RequestBody UpdateVehicleStatusRequest request) {
     return vehicleService.updateStatus(id, request);
@@ -36,7 +36,7 @@ public class VehicleStatusController {
   /** Mise à jour GPS conducteur / admin — déclenche aussi un push map live. */
   @PutMapping("/{id}/location")
   @ResponseStatus(HttpStatus.OK)
-  @PreAuthorize("hasAnyRole('DRIVER','ADMIN')")
+  @PreAuthorize("hasAnyRole('AGENT','DRIVER','ADMIN')")
   public VehicleResponse updateLocation(
       @PathVariable long id, @Valid @RequestBody UpdateVehicleLocationRequest request) {
     return vehicleService.updateLocation(id, request);

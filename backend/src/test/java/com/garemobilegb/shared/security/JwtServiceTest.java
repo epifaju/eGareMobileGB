@@ -19,4 +19,15 @@ class JwtServiceTest {
     assertEquals("42", claims.getSubject());
     assertEquals(Role.USER.name(), claims.get(JwtService.CLAIM_ROLE));
   }
+
+  @Test
+  void createAccessToken_inclut_role_agent() {
+    JwtProperties props =
+        new JwtProperties("dev-secret-key-min-32-chars-long!!", 900_000L, 604_800_000L);
+    JwtService jwt = new JwtService(props);
+    String token = jwt.createAccessToken(7L, "+24570000002", Role.AGENT);
+    Claims claims = jwt.parseAndValidate(token, JwtService.TYP_ACCESS);
+    assertEquals("7", claims.getSubject());
+    assertEquals(Role.AGENT.name(), claims.get(JwtService.CLAIM_ROLE));
+  }
 }

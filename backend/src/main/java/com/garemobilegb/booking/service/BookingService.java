@@ -326,6 +326,7 @@ public class BookingService {
   @Transactional(readOnly = true)
   public SeatMapResponse getSeatMap(long vehicleId) {
     Vehicle vehicle = loadVehicle(vehicleId);
+    assertVehicleVisibleToPassenger(vehicle);
     VehicleSeatLayout layout = validateLayoutCompatibility(vehicle);
     List<Integer> unavailable =
         bookingRepository.findSeatNumbersByVehicleIdAndStatusIn(vehicleId, BLOCKING_STATUSES).stream()
@@ -473,6 +474,7 @@ public class BookingService {
   }
 
   private static void validateVehicleForNewBooking(Vehicle vehicle) {
+    assertVehicleVisibleToPassenger(vehicle);
     if (vehicle.getStatus() == VehicleStatus.PARTI) {
       throw new BusinessException(
           HttpStatus.CONFLICT, "VEHICLE_DEPARTED", "Ce véhicule est déjà parti.");
@@ -480,6 +482,18 @@ public class BookingService {
     if (vehicle.getOccupiedSeats() >= vehicle.getCapacity()) {
       throw new BusinessException(
           HttpStatus.CONFLICT, "VEHICLE_FULL", "Plus de place disponible sur ce véhicule.");
+    }
+  }
+
+  private static void assertVehicleVisibleToPassenger(Vehicle vehicle) {
+    if (vehicle.isArchived()) {
+      throw new BusinessException(
+          HttpStatus.NOT_FOUND, "VEHICLE_NOT_FOUND", "Véhicule introuvable");
+    }
+    var st = vehicle.getStation();
+    if (st != null && st.isArchived()) {
+      throw new BusinessException(
+          HttpStatus.NOT_FOUND, "VEHICLE_NOT_FOUND", "Véhicule introuvable");
     }
   }
 

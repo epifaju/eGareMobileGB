@@ -23,7 +23,7 @@ public class VehicleRevenueController {
 
   /** Revenus (somme paiements PAID) pour un véhicule sur une fenêtre temporelle. */
   @GetMapping("/{vehicleId}/revenue")
-  @PreAuthorize("hasAnyRole('DRIVER','ADMIN')")
+  @PreAuthorize("hasAnyRole('AGENT','DRIVER','ADMIN')")
   public VehicleRevenueResponse revenue(
       @PathVariable long vehicleId,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,

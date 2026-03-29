@@ -1,5 +1,6 @@
 package com.garemobilegb.booking.service;
 
+import com.garemobilegb.audit.service.AdminAuditLogService;
 import com.garemobilegb.booking.domain.BookingStatus;
 import com.garemobilegb.booking.domain.Payment;
 import com.garemobilegb.booking.domain.PaymentStatus;
@@ -7,6 +8,7 @@ import com.garemobilegb.booking.domain.RefundAuditEventType;
 import com.garemobilegb.booking.repository.PaymentRepository;
 import com.garemobilegb.shared.exceptions.BusinessException;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,11 +23,15 @@ public class AdminRefundCompletionService {
 
   private final PaymentRepository paymentRepository;
   private final RefundAuditService refundAuditService;
+  private final AdminAuditLogService adminAuditLogService;
 
   public AdminRefundCompletionService(
-      PaymentRepository paymentRepository, RefundAuditService refundAuditService) {
+      PaymentRepository paymentRepository,
+      RefundAuditService refundAuditService,
+      AdminAuditLogService adminAuditLogService) {
     this.paymentRepository = paymentRepository;
     this.refundAuditService = refundAuditService;
+    this.adminAuditLogService = adminAuditLogService;
   }
 
   @Transactional
@@ -68,5 +74,16 @@ public class AdminRefundCompletionService {
             + payment.getRefundAmount()
             + ", ref="
             + payment.getRefundProviderRef());
+
+    adminAuditLogService.record(
+        adminUserId,
+        "PAYMENT_REFUND_STUB_COMPLETED",
+        "Payment",
+        paymentId,
+        Map.of(
+            "bookingId",
+            booking.getId(),
+            "refundProviderRef",
+            payment.getRefundProviderRef() != null ? payment.getRefundProviderRef() : ""));
   }
 }

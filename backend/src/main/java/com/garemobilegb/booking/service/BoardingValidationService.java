@@ -40,6 +40,13 @@ public class BoardingValidationService {
           "Ce billet n’est pas valable pour ce véhicule.");
     }
 
+    var v = booking.getVehicle();
+    var st = v.getStation();
+    if (v.isArchived() || (st != null && st.isArchived())) {
+      throw new BusinessException(
+          HttpStatus.CONFLICT, "VEHICLE_NOT_ACTIVE", "Ce véhicule n’accepte plus d’embarquement.");
+    }
+
     if (booking.getStatus() == BookingStatus.CANCELLED) {
       throw new BusinessException(
           HttpStatus.CONFLICT, "BOOKING_CANCELLED", "Cette réservation a été annulée.");

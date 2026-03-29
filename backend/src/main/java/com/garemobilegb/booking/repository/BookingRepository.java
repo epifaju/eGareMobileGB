@@ -117,4 +117,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
   @Transactional
   @Query("UPDATE Booking b SET b.departureReminderImminentSentAt = NULL WHERE b.id = :id")
   int clearDepartureReminderImminent(@Param("id") long id);
+
+  long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(Instant from, Instant to);
 }

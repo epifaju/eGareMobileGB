@@ -21,7 +21,7 @@ public class VehicleManifestController {
 
   /** Manifeste passagers (siège, téléphone masqué, statut embarquement). */
   @GetMapping("/{vehicleId}/manifest")
-  @PreAuthorize("hasAnyRole('DRIVER','ADMIN')")
+  @PreAuthorize("hasAnyRole('AGENT','DRIVER','ADMIN')")
   public List<ManifestPassengerResponse> manifest(@PathVariable long vehicleId) {
     return vehicleOpsService.manifestForVehicle(vehicleId);
   }

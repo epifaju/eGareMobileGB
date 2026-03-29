@@ -55,12 +55,16 @@ public class ExpoPushNotificationService {
     this.objectMapper = objectMapper;
   }
 
+  /** Push (et SMS de secours) : jetons des utilisateurs {@link Role#DRIVER} et {@link Role#AGENT}. */
   public void sendDriverCapacityAlert(VehicleOccupancyChangedEvent event, int thresholdPercent) {
-    List<String> tokens =
-        userPushTokenRepository.findByUser_Role(Role.DRIVER).stream()
-            .map(UserPushToken::getExpoPushToken)
-            .distinct()
-            .toList();
+    LinkedHashSet<String> tokenSet = new LinkedHashSet<>();
+    userPushTokenRepository.findByUser_Role(Role.DRIVER).stream()
+        .map(UserPushToken::getExpoPushToken)
+        .forEach(tokenSet::add);
+    userPushTokenRepository.findByUser_Role(Role.AGENT).stream()
+        .map(UserPushToken::getExpoPushToken)
+        .forEach(tokenSet::add);
+    List<String> tokens = new ArrayList<>(tokenSet);
 
     String title = "Remplissage " + thresholdPercent + " %";
     String body =
@@ -85,10 +89,11 @@ public class ExpoPushNotificationService {
     if (!notificationProperties.capacitySmsFallbackEnabledOrDefault()) {
       return;
     }
-    sendCapacitySmsFallbackToDrivers(event, thresholdPercent);
+    sendCapacitySmsFallbackToStationStaff(event, thresholdPercent);
   }
 
-  private void sendCapacitySmsFallbackToDrivers(
+  /** SMS de secours : conducteurs et agents de gare (même message que le push capacité). */
+  private void sendCapacitySmsFallbackToStationStaff(
       VehicleOccupancyChangedEvent event, int thresholdPercent) {
     String template = notificationProperties.capacitySmsTemplateOrDefault();
     String msg =
@@ -102,6 +107,9 @@ public class ExpoPushNotificationService {
 
     Set<String> phones = new LinkedHashSet<>();
     for (User u : userRepository.findByRole(Role.DRIVER)) {
+      phones.add(u.getPhoneNumber());
+    }
+    for (User u : userRepository.findByRole(Role.AGENT)) {
       phones.add(u.getPhoneNumber());
     }
     for (String phone : phones) {

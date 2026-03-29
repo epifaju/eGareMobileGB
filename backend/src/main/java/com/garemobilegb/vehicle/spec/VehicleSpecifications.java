@@ -25,6 +25,9 @@ public final class VehicleSpecifications {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
 
+      predicates.add(cb.isFalse(root.get("archived")));
+      predicates.add(cb.isFalse(root.get("station").get("archived")));
+
       if (stationId != null) {
         predicates.add(cb.equal(root.get("station").get("id"), stationId));
       }

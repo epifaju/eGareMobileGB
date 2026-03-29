@@ -14,6 +14,7 @@ import com.garemobilegb.booking.domain.Payment;
 import com.garemobilegb.booking.domain.PaymentProvider;
 import com.garemobilegb.booking.domain.PaymentStatus;
 import com.garemobilegb.booking.domain.RefundAuditEventType;
+import com.garemobilegb.audit.service.AdminAuditLogService;
 import com.garemobilegb.booking.repository.PaymentRepository;
 import com.garemobilegb.shared.exceptions.BusinessException;
 import com.garemobilegb.station.domain.Station;
@@ -36,6 +37,7 @@ class AdminRefundCompletionServiceTest {
 
   @Mock PaymentRepository paymentRepository;
   @Mock RefundAuditService refundAuditService;
+  @Mock AdminAuditLogService adminAuditLogService;
 
   @InjectMocks AdminRefundCompletionService service;
 

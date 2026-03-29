@@ -7,10 +7,17 @@ spring:
     password: ${DB_PASSWORD:gare_dev_secret}
     hikari:
       maximum-pool-size: 10
+  # Flyway : schéma versionné sous db/migration. Base déjà créée sans Flyway :
+  # baseline-on-migrate pose la version 1 sans rejouer V1 (évite les CREATE sur une base existante).
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate.jdbc.time_zone: UTC
   data:
@@ -28,6 +35,8 @@ app:
   seed:
     admin-phone: "+24500000001"
     admin-password: ${SEED_ADMIN_PASSWORD:change-me-in-env}
+    agent-phone: "+24500000002"
+    agent-password: ${SEED_AGENT_PASSWORD:dev-agent-change-me}
   auth:
     # Ne jamais activer en production : renvoie l’OTP dans la réponse JSON (tests / dev sans SMS).
     expose-otp-in-response: false

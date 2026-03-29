@@ -29,14 +29,14 @@ public class StationService {
 
   @Transactional(readOnly = true)
   public Page<StationResponse> list(Pageable pageable) {
-    return stationRepository.findAll(pageable).map(StationResponse::from);
+    return stationRepository.findByArchivedFalse(pageable).map(StationResponse::from);
   }
 
   @Transactional(readOnly = true)
   public StationResponse getById(long id) {
     Station station =
         stationRepository
-            .findById(id)
+            .findByIdAndArchivedFalse(id)
             .orElseThrow(
                 () ->
                     new BusinessException(HttpStatus.NOT_FOUND, "STATION_NOT_FOUND", "Gare introuvable"));
@@ -45,7 +45,7 @@ public class StationService {
 
   @Transactional(readOnly = true)
   public Page<LowBandwidthStationResponse> listLowBandwidth(Pageable pageable) {
-    Page<Station> page = stationRepository.findAll(pageable);
+    Page<Station> page = stationRepository.findByArchivedFalse(pageable);
     List<Long> stationIds = page.stream().map(Station::getId).toList();
     Map<Long, VehicleRepository.StationActiveVehicleAggregate> aggByStation = new HashMap<>();
     if (!stationIds.isEmpty()) {
