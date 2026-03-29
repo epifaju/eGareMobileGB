@@ -496,6 +496,7 @@ public class BookingService {
   private void finalizeConfirmedBooking(
       Booking booking, Payment payment, Vehicle vehicle, PaymentProvider paidWith) {
     booking.setStatus(BookingStatus.CONFIRMED);
+    booking.setConfirmedAt(Instant.now());
     payment.setStatus(PaymentStatus.PAID);
     if (paidWith != null) {
       payment.setProvider(paidWith);
@@ -531,6 +532,7 @@ public class BookingService {
             vehicle.getId(),
             vehicle.getStation().getId(),
             vehicle.getRegistrationCode(),
+            vehicle.getRouteLabel(),
             previousOccupiedSeats,
             vehicle.getOccupiedSeats(),
             vehicle.getCapacity()));

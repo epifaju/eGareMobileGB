@@ -5,6 +5,7 @@ public record VehicleOccupancyChangedEvent(
     long vehicleId,
     long stationId,
     String registrationCode,
+    String routeLabel,
     int previousOccupiedSeats,
     int currentOccupiedSeats,
     int capacity) {}

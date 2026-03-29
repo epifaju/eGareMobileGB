@@ -22,7 +22,7 @@ class VehicleCapacityAlertServiceTest {
 
   @Test
   void notifiesWhenCrossing80And90InOneStep() {
-    var event = new VehicleOccupancyChangedEvent(1L, 10L, "AB-01", 5, 9, 10);
+    var event = new VehicleOccupancyChangedEvent(1L, 10L, "AB-01", "Route", 5, 9, 10);
     vehicleCapacityAlertService.onOccupancyChanged(event);
     verify(expoPushNotificationService).sendDriverCapacityAlert(eq(event), eq(80));
     verify(expoPushNotificationService).sendDriverCapacityAlert(eq(event), eq(90));
@@ -31,7 +31,7 @@ class VehicleCapacityAlertServiceTest {
 
   @Test
   void noNotifyWhenCapacityZero() {
-    var event = new VehicleOccupancyChangedEvent(1L, 10L, "AB-01", 0, 0, 0);
+    var event = new VehicleOccupancyChangedEvent(1L, 10L, "AB-01", "Route", 0, 0, 0);
     vehicleCapacityAlertService.onOccupancyChanged(event);
     verify(expoPushNotificationService, never()).sendDriverCapacityAlert(any(), anyInt());
   }

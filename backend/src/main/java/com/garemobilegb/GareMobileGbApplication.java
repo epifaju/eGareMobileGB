@@ -9,6 +9,7 @@ import com.garemobilegb.booking.payment.config.MobileMoneyProviderProperties;
 import com.garemobilegb.shared.config.PaymentGatewayProperties;
 import com.garemobilegb.shared.config.JwtProperties;
 import com.garemobilegb.shared.config.RateLimitProperties;
+import com.garemobilegb.shared.config.NotificationProperties;
 import com.garemobilegb.shared.config.SmsProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -27,6 +28,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
   ReceiptProperties.class,
   PaymentGatewayProperties.class,
   MobileMoneyProviderProperties.class,
+  NotificationProperties.class,
   SmsProperties.class
 })
 public class GareMobileGbApplication {

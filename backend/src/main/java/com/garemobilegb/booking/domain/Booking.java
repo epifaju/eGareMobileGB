@@ -54,6 +54,18 @@ public class Booking {
   @Column(name = "boarding_validated_at")
   private Instant boardingValidatedAt;
 
+  /** Passage en CONFIRMED (paiement validé). Utilisé pour le rappel « 80 % du temps écoulé ». */
+  @Column(name = "confirmed_at")
+  private Instant confirmedAt;
+
+  /** Phase 6 — rappel passager : 80 % du délai entre confirmation et départ. */
+  @Column(name = "departure_reminder_pct80_sent_at")
+  private Instant departureReminderPct80SentAt;
+
+  /** Phase 6 — rappel passager : fenêtre avant départ (ex. 15 min). */
+  @Column(name = "departure_reminder_imminent_sent_at")
+  private Instant departureReminderImminentSentAt;
+
   @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
   private Payment payment;
 
@@ -123,6 +135,30 @@ public class Booking {
 
   public void setBoardingValidatedAt(Instant boardingValidatedAt) {
     this.boardingValidatedAt = boardingValidatedAt;
+  }
+
+  public Instant getConfirmedAt() {
+    return confirmedAt;
+  }
+
+  public void setConfirmedAt(Instant confirmedAt) {
+    this.confirmedAt = confirmedAt;
+  }
+
+  public Instant getDepartureReminderPct80SentAt() {
+    return departureReminderPct80SentAt;
+  }
+
+  public void setDepartureReminderPct80SentAt(Instant departureReminderPct80SentAt) {
+    this.departureReminderPct80SentAt = departureReminderPct80SentAt;
+  }
+
+  public Instant getDepartureReminderImminentSentAt() {
+    return departureReminderImminentSentAt;
+  }
+
+  public void setDepartureReminderImminentSentAt(Instant departureReminderImminentSentAt) {
+    this.departureReminderImminentSentAt = departureReminderImminentSentAt;
   }
 
   public Payment getPayment() {

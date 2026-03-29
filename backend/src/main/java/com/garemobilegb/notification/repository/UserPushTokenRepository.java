@@ -12,5 +12,7 @@ public interface UserPushTokenRepository extends JpaRepository<UserPushToken, Lo
 
   List<UserPushToken> findByUser_Role(Role role);
 
+  List<UserPushToken> findByUser_Id(long userId);
+
   void deleteByUser_IdAndExpoPushToken(long userId, String expoPushToken);
 }

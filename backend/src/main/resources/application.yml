@@ -113,6 +113,26 @@ app:
   sms:
     # NONE = aucun envoi ; LOG = journalisation uniquement ; AFRICASTALKING = non branché (voir docs/SMS_OTP.md).
     provider: LOG
+  # Phase 6 — push Expo + SMS fallback (conducteurs : paliers ; passagers : rappels départ).
+  notification:
+    capacity-sms-fallback-enabled: true
+    # {registrationCode} {route} {threshold} {occupied} {capacity} {vehicleId}
+    capacity-sms-template: >-
+      eGare : {registrationCode} ({route}) — remplissage {threshold} %. Places {occupied}/{capacity}.
+      Ouvrez l’app conducteur.
+    departure-reminders-enabled: true
+    departure-reminder-scan-ms: 60000
+    departure-imminent-minutes: 15
+    departure-sms-fallback-enabled: true
+    # Push / SMS passager : {bookingId} {route} {registrationCode} {departure}
+    departure-push-pct80-title: Votre départ approche
+    departure-push-pct80-body: "{route} — véhicule {registrationCode}. Pensez à vous présenter à l’heure à la gare."
+    departure-push-imminent-title: Départ imminent
+    departure-push-imminent-body: "{route} — {registrationCode} : départ sous peu. Présentez votre billet (QR) à l’embarquement."
+    departure-sms-pct80-template: >-
+      eGare : rappel trajet {route} ({registrationCode}). Départ prévu {departure}. Réf. résa {bookingId}.
+    departure-sms-imminent-template: >-
+      eGare : départ imminent — {route} ({registrationCode}), {departure}. Résa {bookingId}. Présentez votre QR.
 
 logging:
   level:
